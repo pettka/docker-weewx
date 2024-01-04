@@ -22,7 +22,7 @@ on:
 env:
 # ["linux/amd64","linux/arm/v6","linux/arm/v7","linux/arm64","linux/ppc64le","linux/s390x"]
   REGISTRY: docker.io
-  IMAGE_NAME: pettka/test
+  IMAGE_NAME: pettka/weewx
 
 permissions:
   actions: read

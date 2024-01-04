@@ -1,0 +1,73 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: weewx
+  labels:
+    app: weewx
+spec:
+  type: NodePort
+  ports:
+    - port: 8088
+      nodePort: 8088
+      name: weewx-api
+      targetPort: http-api
+      protocol: TCP
+    - port: 8080
+      nodePort: 8080
+      name: weewx-http
+      targetPort: http
+      protocol: TCP
+  selector:
+    app: weewx
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: weewx
+spec:
+  serviceName: "weewx"
+  selector:
+    matchLabels:
+      app: weewx
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: weewx
+    spec:
+      containers:
+        - name: weewx
+          image: pettka/weewx:4.5.1
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8088
+              name: http-api
+          env:
+            - name: TIMEZONE
+              value: "Europe/Prague"
+            - name: WEEWX_UID
+              value: "1000"
+            - name: WEEWX_GID
+              value: "dialout"
+          volumeMounts:
+          - name: data-volume
+            mountPath: /data
+          - name: data-volume
+            mountPath: /data/public_html
+            subPath: public_html
+        - name: webserver
+          image: caddy
+          command: ["caddy"]
+          args: ["file-server", "--root", "/data"]
+          ports:
+            - containerPort: 80
+              name: http
+          volumeMounts:
+          - name: data-volume
+            mountPath: /data
+            subPath: public_html
+      volumes:
+        - name: data-volume
+          hostPath:
+            path: /data/weewx/data

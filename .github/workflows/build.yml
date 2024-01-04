@@ -1,0 +1,94 @@
+---
+
+
+name: Build
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+  release:
+    types: [edited, published]
+  schedule:
+    - cron: '0 10 * * *'  # everyday at 10am
+  workflow_dispatch:
+    inputs:
+      dispatch-tag:
+        description: "Tag to apply to pushed images"
+        required: true
+        default: "dispatch"
+
+env:
+# ["linux/amd64","linux/arm/v6","linux/arm/v7","linux/arm64","linux/ppc64le","linux/s390x"]
+  REGISTRY: docker.io
+  IMAGE_NAME: pettka/test
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+
+  docker-secrets:
+    name: "Docker secrets"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check docker.com credentials
+        run: |
+          return_code=0
+          if [ -z "${{ secrets.DOCKER_USERNAME }}" ]; then
+            echo "::warning::Set the DOCKER_USERNAME secret."
+            return_code=1
+          fi
+          if [ -z "${{ secrets.DOCKER_PASSWORD }}" ]; then
+            echo "::warning::Set the DOCKER_PASSWORD secret."
+            return_code=1
+          fi
+          exit $return_code
+        
+      
+  docker-build:
+    name: "Docker build"
+    needs:
+      - docker-secrets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to Docker Hub
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Check out the repo
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+            type=schedule
+            type=schedule,pattern=nightly
+            type=schedule,pattern={{date 'YYYYMMDD'}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v2
+        with:
+          file: ./Dockerfile
+          context: .
+          # platforms: linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          

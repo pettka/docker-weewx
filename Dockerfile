@@ -34,6 +34,7 @@ RUN apt update && apt -y install \
     # https://stackoverflow.com/a/76620194 https://github.com/python-pillow/Pillow/issues/7149
     Pillow==9.4.0
     # python3-dev python3-pip && pip3 install pyephem 
+    && echo "StrictHostKeyChecking no" >> /etc/ssh/ssh_config
 
 VOLUME /data/public_html
 RUN mkdir -p /data/public_html \

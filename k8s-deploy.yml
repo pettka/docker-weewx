@@ -38,7 +38,7 @@ spec:
     spec:
       containers:
         - name: weewx
-          image: pettka/weewx:4.5.1
+          image: pettka/weewx:main
           imagePullPolicy: Always
           ports:
             - containerPort: 8088
@@ -47,7 +47,8 @@ spec:
             - name: TIMEZONE
               value: "Europe/Prague"
             - name: WEEWX_UID
-              value: "1000"
+              # value: "weewx"
+              value: "0"
             - name: WEEWX_GID
               value: "dialout"
           volumeMounts:
@@ -56,6 +57,11 @@ spec:
           - name: data-volume
             mountPath: /data/public_html
             subPath: public_html
+          - name: weewx-sshkey
+            # mountPath: /home/weewx/.ssh/id_rsa
+            mountPath: /root/.ssh/id_rsa
+            readOnly: true
+            subPath: weewx
         - name: webserver
           image: caddy
           command: ["caddy"]
@@ -71,3 +77,7 @@ spec:
         - name: data-volume
           hostPath:
             path: /data/weewx/data
+        - name: weewx-sshkey
+          secret:
+            secretName: weewx-sshkey
+            defaultMode: 0600
